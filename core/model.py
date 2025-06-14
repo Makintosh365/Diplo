@@ -69,6 +69,7 @@ class BotnetClassifier:
             print(f"📚 Эпоха {epoch + 1}/{epochs} | Потери: {total_loss:.4f}")
 
     def save_model(self):
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         torch.save({
             'model_state_dict': self.model.state_dict(),
             'classes': self.label_encoder.classes_,
