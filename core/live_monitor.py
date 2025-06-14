@@ -131,7 +131,7 @@ class LiveBotnetMonitor:
 
         df_raw = pd.DataFrame(self.packet_list)
         try:
-            df_feat = extract_features(df_raw.copy())
+            df_feat, _, _ = extract_features(df_raw.copy())
             preds = self.model.predict(df_feat)
             df_raw["predicted_label"] = preds
 

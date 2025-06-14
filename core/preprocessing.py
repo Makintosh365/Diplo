@@ -19,9 +19,15 @@ def load_csv_files(input_dir: str) -> pd.DataFrame:
     return pd.concat(dataframes, ignore_index=True)
 
 
-def extract_features(df: pd.DataFrame) -> pd.DataFrame:
+def extract_features(
+    df: pd.DataFrame,
+    vectorizer: TfidfVectorizer | None = None,
+    scaler: MinMaxScaler | None = None,
+) -> tuple[pd.DataFrame, TfidfVectorizer, MinMaxScaler]:
     """
     Преобразует DataFrame: извлекает числовые и бинарные признаки, векторизует Info.
+    Возвращает обработанный DataFrame и использованные трансформеры, чтобы их
+    можно было переиспользовать при обработке больших файлов по частям.
     """
     # Убедимся, что нужные колонки есть
     required_cols = ["No.", "Time", "Protocol", "Length", "Info", "source_file"]
@@ -48,14 +54,20 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     df["Protocol"] = proto_encoder.fit_transform(df["Protocol"])
 
     # Векторизация Info через TF-IDF
-    tfidf = TfidfVectorizer(max_features=100)
-    tfidf_matrix = tfidf.fit_transform(df["Info"]).toarray()
+    if vectorizer is None:
+        vectorizer = TfidfVectorizer(max_features=100)
+        tfidf_matrix = vectorizer.fit_transform(df["Info"]).toarray()
+    else:
+        tfidf_matrix = vectorizer.transform(df["Info"]).toarray()
     tfidf_df = pd.DataFrame(tfidf_matrix, columns=[f"tfidf_{i}" for i in range(tfidf_matrix.shape[1])])
 
     # Масштабируем числовые признаки
     numeric_cols = ["No.", "Time", "Length", "delta_time"]
-    scaler = MinMaxScaler()
-    df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+    if scaler is None:
+        scaler = MinMaxScaler()
+        df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+    else:
+        df[numeric_cols] = scaler.transform(df[numeric_cols])
 
     # Собираем итоговый DataFrame
     df = df.reset_index(drop=True)
@@ -68,7 +80,7 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     final_df["source_file"] = df["source_file"].values
 
 
-    return final_df
+    return final_df, vectorizer, scaler
 
 
 def save_processed_data(df: pd.DataFrame, output_path: str) -> None:

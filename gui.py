@@ -66,18 +66,31 @@ class TrafficApp(tk.Tk):
             messagebox.showwarning("Нет файла", "Сначала выберите CSV-файл.")
             return
         try:
-            # Загружаем оригинальный CSV
-            df_raw = pd.read_csv(self.selected_file,low_memory=False)
-            df_raw["source_file"] = os.path.basename(self.selected_file)
+            chunk_iter = pd.read_csv(
+                self.selected_file,
+                low_memory=False,
+                chunksize=50000,
+            )
 
-            # Извлечение признаков
-            df_feat = extract_features(df_raw.copy())
             model = BotnetClassifier()
-            model.load_model(input_size=df_feat.shape[1] - 1)
+            vectorizer = None
+            scaler = None
+            result_chunks = []
 
-            # Предсказание
-            preds = model.predict(df_feat)
-            df_raw["predicted_label"] = preds
+            for chunk in chunk_iter:
+                chunk["source_file"] = os.path.basename(self.selected_file)
+                df_feat, vectorizer, scaler = extract_features(
+                    chunk.copy(), vectorizer, scaler
+                )
+
+                if model.model is None:
+                    model.load_model(input_size=df_feat.shape[1] - 1)
+
+                preds = model.predict(df_feat)
+                chunk["predicted_label"] = preds
+                result_chunks.append(chunk)
+
+            df_raw = pd.concat(result_chunks, ignore_index=True)
             self.result_df = df_raw
 
             # Подозрительные строки
@@ -144,7 +157,7 @@ class TrafficApp(tk.Tk):
         try:
             self.log("📥 Загружаем данные из data/raw/")
             df = load_csv_files("data/raw")
-            df = extract_features(df)
+            df, _, _ = extract_features(df)
             df = add_labels(df)
             save_processed_data(df, "data/processed/train.csv")
 
