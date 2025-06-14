@@ -16,7 +16,7 @@ def train(data_dir: str = "data/raw", save_path: str = "data/processed/train.csv
     """
     typer.echo("📥 Загрузка данных...")
     df = load_csv_files(data_dir)
-    df = extract_features(df)
+    df, _, _ = extract_features(df)
     df = add_labels(df)
     save_processed_data(df, save_path)
 
@@ -35,7 +35,7 @@ def predict(file: str):
     typer.echo(f"📥 Анализ файла: {file}")
     df = load_csv_files(Path(file).parent.as_posix())
     df = df[df["source_file"] == Path(file).name]
-    df = extract_features(df)
+    df, _, _ = extract_features(df)
 
     classifier = BotnetClassifier()
     classifier.load_model(input_size=df.shape[1] - 1)  # минус source_file
